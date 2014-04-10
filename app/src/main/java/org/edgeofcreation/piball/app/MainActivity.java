@@ -18,6 +18,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -36,11 +37,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     private ToneGenerator mToneGen;
 
     private int mReadInterval, mPreTone;
+    private float mAveraging;
 
     private SensorManager mSensMan;
     private Sensor mSensAccel, mSensMag;
     private float[] mCurAcc, mCurMag;
-    private float mCurAz, mCurEl;
+    private float mCurAz, mCurEl, mAvgAz, mAvgEl;
 
     private TextView mNextTime, mNextAz, mNextEl;
     private TextView mTopAz, mTopEl;
@@ -68,8 +70,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         mCurAcc = mCurMag = null;
         mNextTime = mNextAz = mNextEl = null;
 
-        mPreTone = 1000;
-        mReadInterval = 5;
+        mPreTone = 200;
+        mReadInterval = 2;
+        mAveraging = (1.0f - 0.1f);
     }
 
     protected void onResume() {
@@ -226,6 +229,18 @@ public class MainActivity extends Activity implements SensorEventListener {
         mNextEl = new TextView(this);
         mNextEl.setText("0 el");
         tr.addView(mNextEl);
+
+        final ScrollView sv = (ScrollView)findViewById(R.id.scrollView);
+        // if we just call fullScroll here, the table view hasn't had a chance to
+        // properly update its size, so the scrollView will stop one line short; if we
+        // post it to the scrollView, the tableLayout will do its thing first, then the
+        // scrollView will go all the way to the bottom.
+        sv.post(new Runnable() {
+            @Override
+            public void run() {
+                sv.fullScroll(View.FOCUS_DOWN);
+            }
+        });
     }
 
     private void tmrTick () {
@@ -242,8 +257,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             mNextEl.setText("---");
             return;
         }
-        mNextAz.setText(Float.toString(mCurAz));
-        mNextEl.setText(Float.toString(mCurEl));
+        if ((mAveraging > 0) && (mAveraging < 1)) {
+            mAvgAz = (mAveraging * mAvgAz) + ((1 - mAveraging) * mCurAz);
+            mAvgEl = (mAveraging * mAvgEl) + ((1 - mAveraging) * mCurEl);
+        } else {
+            mAvgAz = mCurAz;
+            mAvgEl = mCurEl;
+        }
+        mNextAz.setText(Float.toString(mAvgAz));
+        mNextEl.setText(Float.toString(mAvgEl));
     }
 
     private void tmrPreTone() {
@@ -260,13 +282,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             mStarting = false;
             mStart = new Date();
             time = 0;
+            mAvgAz = mCurAz;
+            mAvgEl = mCurEl;
         } else {
             time = (new Date()).getTime() - mStart.getTime();
         }
 
-        final boolean valid = recalcAzEl();
-        final float az = mCurAz;
-        final float el = mCurEl;
+        final boolean valid = true;//recalcAzEl();
+        final float az = mAvgAz;
+        final float el = mAvgEl;
 
         runOnUiThread(
                 new Runnable() {
@@ -283,8 +307,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         mNextTime.setText(Double.toString(time / 1000.0));
 
         if (valid) {
-            mNextAz.setText(Float.toString(mCurAz));
-            mNextEl.setText(Float.toString(mCurEl));
+            mNextAz.setText(Float.toString(az));
+            mNextEl.setText(Float.toString(el));
         } else {
             mNextAz.setText("---");
             mNextEl.setText("---");
