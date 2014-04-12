@@ -33,7 +33,7 @@ public class ReadingsSet {
         this.mReadings.add(new ReadingEntry(time, az, el));
     }
 
-    public ArrayList<ReadingEntry> getReadings() {
-        return this.mReadings;
+    public ReadingEntry[] getReadings() {
+        return this.mReadings.toArray(new ReadingEntry[mReadings.size()]);
     }
 }
