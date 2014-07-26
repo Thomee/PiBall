@@ -75,8 +75,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         mCurAcc = mCurMag = null;
         mNextTime = mNextAz = mNextEl = null;
 
-        mPreTone = 200;
-        mReadInterval = 2;
+        mPreTone = 1000;
+        mReadInterval = 20;
         mAveraging = (1.0f - 0.1f);
     }
 
@@ -208,7 +208,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         mStart = null;
     }
 
-    private final double mAR = 400; // Ascent Rate - 300 ft/min
+    private final double mAR = 300; // Ascent Rate - 300 ft/min
     private final double mDegPerRad = 180.0 / Math.PI;
     private final double mSecPerHr = 3600;
     private final double mFtPerNM = 6076.12;
@@ -257,6 +257,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             double y = hd * Math.sin(raw[i+1].az / mDegPerRad); // y coord in feet
 
             double dt = raw[i+1].time - raw[i].time;
+            double dh = ht - h0;
             double dy = y - y0;
             double dx = x - x0;
             double dd = Math.sqrt(dx * dx + dy * dy); // horiz dist since last point
@@ -270,17 +271,47 @@ public class MainActivity extends Activity implements SensorEventListener {
                     "%f %f %f %f %f %f %f %f %f %f",
                     ht, hd, x, y, dt, dy, dx, dd, spd, hdg));
 
-            res[i] = new ResultsEntry((float)ht, (float)hdg, (float)spd);
+            res[i] = new ResultsEntry((float)(h0 + dh / 2.0), (float)hdg, (float)spd);
 
             x0 = x;
             y0 = y;
             h0 = ht;
         }
+
+        TableLayout tl = (TableLayout)findViewById(R.id.tblResults);
+        TableRow tr;
+        TextView tv;
         Log.v(TAG, "Results:");
         for (int i = 0; i < res.length; i++) {
             Log.v(TAG, String.format("%04.0fft: %02.0fkts from %03.0fdeg",
                     res[i].height, res[i].speed, res[i].heading));
+
+            tr = new TableRow(this);
+            tl.addView(tr);
+
+            tv = new TextView(this);
+            tv.setText(String.format("%04.0fft", res[i].height));
+            tr.addView(tv);
+            tv = new TextView(this);
+            tv.setText(String.format("%02.0fkts", res[i].speed));
+            tr.addView(tv);
+            tv = new TextView(this);
+            tv.setText(String.format("%03.0fdeg", res[i].heading));
+            tr.addView(tv);
         }
+
+
+        final ScrollView sv = (ScrollView)findViewById(R.id.scrollView);
+        // if we just call fullScroll here, the table view hasn't had a chance to
+        // properly update its size, so the scrollView will stop one line short; if we
+        // post it to the scrollView, the tableLayout will do its thing first, then the
+        // scrollView will go all the way to the bottom.
+        sv.post(new Runnable() {
+            @Override
+            public void run() {
+                sv.fullScroll(View.FOCUS_DOWN);
+            }
+        });
     }
 
     private boolean recalcAzEl () {
