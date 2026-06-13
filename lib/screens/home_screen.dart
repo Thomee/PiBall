@@ -109,7 +109,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (live != null) {
       final a = _settings.averaging;
       if (a > 0 && a < 1) {
-        _avgAz = a * _avgAz + (1 - a) * live.azimuth;
+        var la = live.azimuth;
+        if (_avgAz > 330 && la < 30) {
+          la += 360;
+        }
+        if (_avgAz < 30 && la > 330) {
+          la -= 360;
+        }
+        _avgAz = a * _avgAz + (1 - a) * la;
+        if (_avgAz < 0) {
+          _avgAz += 360;
+        }
+        if (_avgAz >= 360) {
+          _avgAz -= 360;
+        }
         _avgEl = a * _avgEl + (1 - a) * live.elevation;
       } else {
         _avgAz = live.azimuth;
